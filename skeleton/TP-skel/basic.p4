@@ -3,6 +3,9 @@
 #include <v1model.p4>
 
 const bit<16> TYPE_IPV4 = 0x800;
+const bit<8> TYPE_TCP = 0x06;
+const bit<8> TYPE_UDP = 0x11;
+const bit<8> TYPE_INT = 0x66;
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -33,9 +36,40 @@ header ipv4_t {
     ip4Addr_t dstAddr;
 }
 
+
+header tcp_t{
+    bit<16> srcPort;
+    bit<16> dstPort;
+    bit<32> sequenceNum;
+    bit<32> ackNum;
+    bit<4> dataOffset;
+    bit<3> res;
+    bit<1> ns;
+    bit<1> cwr;
+    bit<1> ece;
+    bit<1> urg;
+    bit<1> ack;
+    bit<1> psh;
+    bit<1> rst;
+    bit<1> syn;
+    bit<1> fin;
+    bit<16> windowSize;
+    bit<16> checksum;
+    bit<16> urgPtr;
+}
+
+header udp_t{
+    bit<16> srcPort;
+    bit<16> dstPort;
+    bit<16> len;
+    bit<16> checksum;
+}
+
+
 header int_pai_t {
     bit<32> Tamanho_Filho;
     bit<32> Quantidade_Filhos;
+    bit<8>  next_header;
     /* Outros dados*/
 }
 
@@ -55,6 +89,8 @@ struct metadata {
 struct headers {
     ethernet_t   ethernet;
     ipv4_t       ipv4;
+    tcp_t        tcp;
+    udp_t        udp;
     int_pai_t    int_pai;
     int_filho_t  int_filho;
 }
@@ -82,17 +118,45 @@ parser MyParser(packet_in packet,
 
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
-        transition parse_int;
+		transition select(hdr.ipv4.protocol){
+			TYPE_TCP: parse_tcp;
+			TYPE_UDP: parse_udp;
+            TYPE_INT: parse_int;
+			default: accept;
+		}
     }
 
+	state parse_tcp {
+		packet.extract(hdr.tcp);
+		transition  accept;
+	}
+
+	state parse_udp {
+		packet.extract(hdr.udp);
+		transition  accept;
+	}
+
+/*TODO: acho que nao eh no parser que adiciona o cabecalho.
+    pelo que eu entendi o parser é só pra preencher os headers e dar
+    accept ou reject 
+*/
     state parse_int {
-        if(hdr.int_pai.isValid()) {
-            packet.extract(hdr.int_pai);
+        packet.extract(hdr.int_pai);
         } else {
             hdr.int_pai.setValid();
             packet.extract(hdr.int_pai); /* Passo A, adiciona cabecalho caso ele nao exista */
         }
     }
+/*
+    state parse_int {
+        if(hdr.int_pai.isValid()) {
+            packet.extract(hdr.int_pai);
+        } else {
+            hdr.int_pai.setValid();
+            packet.extract(hdr.int_pai); // Passo A, adiciona cabecalho caso ele nao exista 
+        }
+    }
+*/
 
 }
 
@@ -139,6 +203,35 @@ control MyIngress(inout headers hdr,
     apply {
         if (hdr.ipv4.isValid()) {
             ipv4_lpm.apply();
+
+            if(!hdr.int_pai.isValid()){
+                //TODO: inserir o header int_pai e 1 header int_filho.
+                //Verificar se eh assim mesmo que se adiciona headers.
+                //Item1 da primeira pagina da spec do trabalho comenta setValid.
+                hdr.int_pai.setValid();
+                hdr.int_pai.Tamanho_Filho = 104;
+                hdr.int_pai.Quantidade_Filhos = 1;
+
+                //salva o protocolo que viria apos o ipv4 no next_header do pai e 
+                //seta o protocol do ipv4 para int. No proximo hop vai identificar a 
+                // existencia do int_pai no parser.
+                hdr.int_pai.next_header = hdr.ipv4.protocol;
+                hdr.ipv4.protocol= TYPE_INT;
+
+                hdr.int_filho.setValid();
+                //TODO: preencher conforme valores da tabela de standard metadados (Aula11, slide 8)
+                hdr.int_filho.ID_Switch = ... //???
+                hdr.int_filho.Porta_Entrada = standard_metadata.ingress_port;
+                hdr.int_filho.Porta_Saida = standard_metadata.egress_spec;
+                hdr.int_filho.Timestamp = standard_metadata.ingress_global_timestamp;
+                hdr.int_filho.padding = 0;
+
+            }else{
+                //TODO: Ja existe o pai. Atualiza o numero de filhos e insere novo filho.
+                // Como inserir novos filhos? usar varbit de alguma forma ??
+                hdr.int_pai.Quantidade_Filhos = hdr.int_pai.Quantidade_Filhos + 1;
+                //Inserir novo filho.....
+            }
         }
     }
 }
@@ -186,6 +279,9 @@ control MyDeparser(packet_out packet, in headers hdr) {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.ipv4);
         packet.emit(hdr.int_pai);
+        //packet.emit(hdr.int_filho);
+		packet.emit(hdr.tcp);
+		packet.emit(hdr.udp);
     }
 }
 
