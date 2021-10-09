@@ -6,6 +6,7 @@ const bit<16> TYPE_IPV4 = 0x800;
 const bit<8> TYPE_TCP = 0x06;
 const bit<8> TYPE_UDP = 0x11;
 const bit<8> TYPE_INT = 0x66;
+#define MAX_HOPS 16
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -75,14 +76,15 @@ header int_pai_t {
 
 header int_filho_t {
     bit<32> ID_Switch;
-    bit<32> Porta_Entrada;
-    bit<32> Porta_Saida;
-    bit<32> Timestamp;
+    bit<9> Porta_Entrada;
+    bit<9> Porta_Saida;
+    bit<48> Timestamp;
     /* Outros dados*/
-    bit<64> padding; /* O tamanho do cabecalho em bits deve ser multiplo de 8 */
+    bit<6> padding; /* O tamanho do cabecalho em bits deve ser multiplo de 8 */
 }
 
 struct metadata {
+    bit<16> remaining;
     /* empty */
 }
 
@@ -92,7 +94,7 @@ struct headers {
     tcp_t        tcp;
     udp_t        udp;
     int_pai_t    int_pai;
-    int_filho_t  int_filho;
+    int_filho_t [MAX_HOPS] int_filho;
 }
 
 /*************************************************************************
@@ -140,30 +142,29 @@ parser MyParser(packet_in packet,
     pelo que eu entendi o parser é só pra preencher os headers e dar
     accept ou reject 
 */
-    state parse_int {
+    state parse_int_pai {
         packet.extract(hdr.int_pai);
         //TODO: packet.extract dos filhos.
-        //Algo do tipo: packet.extract(hdr, len).
-        //packet.extract(hdr.int_filho, hdr.int_pai.Tamanho_Filho*hdr.int_pai.Quantidade_Filhos)
 
-		transition select(hdr.int_pai.next_header){
-			TYPE_TCP: parse_tcp;
-			TYPE_UDP: parse_udp;
-			default: accept;
-		}
-        
+        meta.remaining = hdr.int_pai.Quantidade_Filhos;
+        transition parse_int_filho;
 
     }
-/*
-    state parse_int {
-        if(hdr.int_pai.isValid()) {
-            packet.extract(hdr.int_pai);
-        } else {
-            hdr.int_pai.setValid();
-            packet.extract(hdr.int_pai); // Passo A, adiciona cabecalho caso ele nao exista 
+
+    state parse_int_filho {
+        packet.extract(hdr.int_filho.next);
+        meta.remaining = meta.remaining -1;
+
+        if(meta.remaining == 0){
+            transition select(hdr.int_pai.next_header){
+                TYPE_TCP: parse_tcp;
+                TYPE_UDP: parse_udp;
+                default: accept;
+            }
+        }else{
+            transition parse_int_filho;
         }
     }
-*/
 
 }
 
@@ -216,7 +217,7 @@ control MyIngress(inout headers hdr,
                 //Verificar se eh assim mesmo que se adiciona headers.
                 //Item1 da primeira pagina da spec do trabalho comenta setValid.
                 hdr.int_pai.setValid();
-                hdr.int_pai.Tamanho_Filho = 104;
+                hdr.int_pai.Tamanho_Filho = 104; //verificar se existe uma forma de extrair o tamanho das structs
                 hdr.int_pai.Quantidade_Filhos = 1;
 
                 //salva o protocolo que viria apos o ipv4 no next_header do pai e 
