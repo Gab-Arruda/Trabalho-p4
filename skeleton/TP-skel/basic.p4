@@ -142,10 +142,17 @@ parser MyParser(packet_in packet,
 */
     state parse_int {
         packet.extract(hdr.int_pai);
-        } else {
-            hdr.int_pai.setValid();
-            packet.extract(hdr.int_pai); /* Passo A, adiciona cabecalho caso ele nao exista */
-        }
+        //TODO: packet.extract dos filhos.
+        //Algo do tipo: packet.extract(hdr, len).
+        //packet.extract(hdr.int_filho, hdr.int_pai.Tamanho_Filho*hdr.int_pai.Quantidade_Filhos)
+
+		transition select(hdr.int_pai.next_header){
+			TYPE_TCP: parse_tcp;
+			TYPE_UDP: parse_udp;
+			default: accept;
+		}
+        
+
     }
 /*
     state parse_int {
