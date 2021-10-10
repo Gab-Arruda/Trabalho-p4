@@ -5,8 +5,8 @@
 const bit<16> TYPE_IPV4 = 0x800;
 const bit<8> TYPE_TCP = 0x06;
 const bit<8> TYPE_UDP = 0x11;
-const bit<8> TYPE_INT = 0x66;
-#define MAX_HOPS 16
+const bit<8> TYPE_INT = 150; //0x96;
+#define MAX_HOPS 8
 
 /*************************************************************************
 *********************** H E A D E R S  ***********************************
@@ -84,17 +84,17 @@ header int_filho_t {
 }
 
 struct metadata {
-    bit<16> remaining;
+    bit<32> remaining;
     /* empty */
 }
 
 struct headers {
     ethernet_t   ethernet;
     ipv4_t       ipv4;
-    tcp_t        tcp;
-    udp_t        udp;
     int_pai_t    int_pai;
     int_filho_t [MAX_HOPS] int_filho;
+    tcp_t        tcp;
+    udp_t        udp;
 }
 
 /*************************************************************************
@@ -121,9 +121,9 @@ parser MyParser(packet_in packet,
     state parse_ipv4 {
         packet.extract(hdr.ipv4);
 		transition select(hdr.ipv4.protocol){
-			TYPE_TCP: parse_tcp;
-			TYPE_UDP: parse_udp;
-            TYPE_INT: parse_int;
+//			TYPE_TCP: parse_tcp;
+//			TYPE_UDP: parse_udp;
+            TYPE_INT: parse_int_pai;
 			default: accept;
 		}
     }
@@ -144,7 +144,6 @@ parser MyParser(packet_in packet,
 */
     state parse_int_pai {
         packet.extract(hdr.int_pai);
-        //TODO: packet.extract dos filhos.
 
         meta.remaining = hdr.int_pai.Quantidade_Filhos;
         transition parse_int_filho;
@@ -155,17 +154,19 @@ parser MyParser(packet_in packet,
         packet.extract(hdr.int_filho.next);
         meta.remaining = meta.remaining -1;
 
-        if(meta.remaining == 0){
-            transition select(hdr.int_pai.next_header){
-                TYPE_TCP: parse_tcp;
-                TYPE_UDP: parse_udp;
-                default: accept;
-            }
-        }else{
-            transition parse_int_filho;
+        transition select(meta.remaining){
+            0: parse_L4;
+            default: parse_int_filho;
         }
     }
-
+    
+    state parse_L4{
+        transition select(hdr.int_pai.next_header){
+            TYPE_TCP: parse_tcp;
+            TYPE_UDP: parse_udp;
+            default: accept;
+        }
+    }
 }
 
 /*************************************************************************
@@ -207,6 +208,26 @@ control MyIngress(inout headers hdr,
         size = 1024;
         default_action = drop();
     }
+
+    action add_intfilho(bit<32> swid){
+        hdr.int_pai.Quantidade_Filhos = hdr.int_pai.Quantidade_Filhos + 1;
+        hdr.int_filho.push_front(1);
+        hdr.int_filho[0].setValid();
+        hdr.int_filho[0].ID_Switch = swid; //???
+        hdr.int_filho[0].Porta_Entrada = standard_metadata.ingress_port;
+        hdr.int_filho[0].Porta_Saida = standard_metadata.egress_spec;
+        hdr.int_filho[0].Timestamp = standard_metadata.ingress_global_timestamp;
+        hdr.int_filho[0].padding = 0;
+
+    }
+
+    table intfilho {
+        actions = {
+	    add_intfilho; 
+	    NoAction; 
+        }
+        default_action = NoAction();      
+    }
     
     apply {
         if (hdr.ipv4.isValid()) {
@@ -218,29 +239,18 @@ control MyIngress(inout headers hdr,
                 //Item1 da primeira pagina da spec do trabalho comenta setValid.
                 hdr.int_pai.setValid();
                 hdr.int_pai.Tamanho_Filho = 104; //verificar se existe uma forma de extrair o tamanho das structs
-                hdr.int_pai.Quantidade_Filhos = 1;
+                hdr.int_pai.Quantidade_Filhos = 0;
 
                 //salva o protocolo que viria apos o ipv4 no next_header do pai e 
                 //seta o protocol do ipv4 para int. No proximo hop vai identificar a 
                 // existencia do int_pai no parser.
                 hdr.int_pai.next_header = hdr.ipv4.protocol;
                 hdr.ipv4.protocol= TYPE_INT;
-
-                hdr.int_filho.setValid();
-                //TODO: preencher conforme valores da tabela de standard metadados (Aula11, slide 8)
-                hdr.int_filho.ID_Switch = ... //???
-                hdr.int_filho.Porta_Entrada = standard_metadata.ingress_port;
-                hdr.int_filho.Porta_Saida = standard_metadata.egress_spec;
-                hdr.int_filho.Timestamp = standard_metadata.ingress_global_timestamp;
-                hdr.int_filho.padding = 0;
-
-            }else{
-                //TODO: Ja existe o pai. Atualiza o numero de filhos e insere novo filho.
-                // Como inserir novos filhos? usar varbit de alguma forma ??
-                hdr.int_pai.Quantidade_Filhos = hdr.int_pai.Quantidade_Filhos + 1;
-                //Inserir novo filho.....
             }
+            //Ja existe o pai. Atualiza o numero de filhos e insere novo filho.
+            intfilho.apply();
         }
+
     }
 }
 
@@ -287,7 +297,7 @@ control MyDeparser(packet_out packet, in headers hdr) {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.ipv4);
         packet.emit(hdr.int_pai);
-        //packet.emit(hdr.int_filho);
+        packet.emit(hdr.int_filho);
 		packet.emit(hdr.tcp);
 		packet.emit(hdr.udp);
     }
