@@ -74,7 +74,11 @@ header int_pai_t {
     /* Outros dados*/
 }
 
-header int_filho_t {
+header int_filhos_t{
+    varbit<1040> Filhos;
+}
+
+header int_novo_filho_t {
     bit<32> ID_Switch;
     bit<9> Porta_Entrada;
     bit<9> Porta_Saida;
@@ -92,7 +96,8 @@ struct headers {
     ethernet_t   ethernet;
     ipv4_t       ipv4;
     int_pai_t    int_pai;
-    int_filho_t [MAX_HOPS] int_filho;
+    int_filhos_t int_lista_filhos;
+    int_novo_filho_t int_novo_filho;
     tcp_t        tcp;
     udp_t        udp;
 }
@@ -128,15 +133,15 @@ parser MyParser(packet_in packet,
 		}
     }
 
-	state parse_tcp {
-		packet.extract(hdr.tcp);
-		transition  accept;
-	}
-
-	state parse_udp {
-		packet.extract(hdr.udp);
-		transition  accept;
-	}
+//	state parse_tcp {
+//		packet.extract(hdr.tcp);
+//		transition  accept;
+//	}
+//
+//	state parse_udp {
+//		packet.extract(hdr.udp);
+//		transition  accept;
+//	}
 
 /*TODO: acho que nao eh no parser que adiciona o cabecalho.
     pelo que eu entendi o parser é só pra preencher os headers e dar
@@ -144,29 +149,28 @@ parser MyParser(packet_in packet,
 */
     state parse_int_pai {
         packet.extract(hdr.int_pai);
-
         meta.remaining = hdr.int_pai.Quantidade_Filhos;
-        transition parse_int_filho;
-
+        packet.extract(hdr.int_lista_filhos, hdr.int_pai.Quantidade_Filhos * hdr.int_pai.Tamanho_Filho );
+        transition accept;
     }
 
-    state parse_int_filho {
-        packet.extract(hdr.int_filho.next);
-        meta.remaining = meta.remaining -1;
-
-        transition select(meta.remaining){
-            0: parse_L4;
-            default: parse_int_filho;
-        }
-    }
-    
-    state parse_L4{
-        transition select(hdr.int_pai.next_header){
-            TYPE_TCP: parse_tcp;
-            TYPE_UDP: parse_udp;
-            default: accept;
-        }
-    }
+//    state parse_int_filho {
+//        packet.extract(hdr.int_filho.next);
+//        meta.remaining = meta.remaining -1;
+//
+//        transition select(meta.remaining){
+//            0: parse_L4;
+//            default: parse_int_filho;
+//        }
+//    }
+//    
+//    state parse_L4{
+//        transition select(hdr.int_pai.next_header){
+//            TYPE_TCP: parse_tcp;
+//            TYPE_UDP: parse_udp;
+//            default: accept;
+//        }
+//    }
 }
 
 /*************************************************************************
@@ -211,13 +215,12 @@ control MyIngress(inout headers hdr,
 
     action add_intfilho(bit<32> swid){
         hdr.int_pai.Quantidade_Filhos = hdr.int_pai.Quantidade_Filhos + 1;
-        hdr.int_filho.push_front(1);
-        hdr.int_filho[0].setValid();
-        hdr.int_filho[0].ID_Switch = swid; //???
-        hdr.int_filho[0].Porta_Entrada = standard_metadata.ingress_port;
-        hdr.int_filho[0].Porta_Saida = standard_metadata.egress_spec;
-        hdr.int_filho[0].Timestamp = standard_metadata.ingress_global_timestamp;
-        hdr.int_filho[0].padding = 0;
+        hdr.int_novo_filho.setValid();
+        hdr.int_novo_filho.ID_Switch = swid; //???
+        hdr.int_novo_filho.Porta_Entrada = standard_metadata.ingress_port;
+        hdr.int_novo_filho.Porta_Saida = standard_metadata.egress_spec;
+        hdr.int_novo_filho.Timestamp = standard_metadata.ingress_global_timestamp;
+        hdr.int_novo_filho.padding = 0;
 
     }
 
@@ -297,9 +300,10 @@ control MyDeparser(packet_out packet, in headers hdr) {
         packet.emit(hdr.ethernet);
         packet.emit(hdr.ipv4);
         packet.emit(hdr.int_pai);
-        packet.emit(hdr.int_filho);
-		packet.emit(hdr.tcp);
-		packet.emit(hdr.udp);
+        packet.emit(hdr.int_lista_filhos);
+        packet.emit(hdr.int_novo_filho);
+//		packet.emit(hdr.tcp);
+//		packet.emit(hdr.udp);
     }
 }
 
