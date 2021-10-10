@@ -10,10 +10,14 @@ TCP/ UDP
 
 
 pensei em inserir o int entre o IP e o TCP. 
-Definindo-se um protocol ID para o INT (arbitrei 0x66),
+Definindo-se um protocol ID para o INT (arbitrei 150 (0x96)),
 pode-se fazer o parser detectar a existencia pelo campo 
 correspondente ao ip.protocol.
 
-Duvidas:
-Verificar a forma correta de inserir headers no pacote.
-Descobrir como fazer o parser de multiplos int_filho.
+
+Tamanho atual do intFilho= 104 bits.
+
+
+Tutorial de teste:
+https://docs.google.com/document/d/1pk77sS_1S6r6ncPKz0G-BVlcWwKWCnyoxSvD0JW3Xu0/edit?usp=sharing
+
