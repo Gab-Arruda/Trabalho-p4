@@ -150,7 +150,7 @@ parser MyParser(packet_in packet,
     state parse_int_pai {
         packet.extract(hdr.int_pai);
         meta.remaining = hdr.int_pai.Quantidade_Filhos;
-        packet.extract(hdr.int_lista_filhos, hdr.int_pai.Quantidade_Filhos * hdr.int_pai.Tamanho_Filho );
+        packet.extract(hdr.int_lista_filhos, hdr.int_pai.Quantidade_Filhos *hdr.int_pai.Tamanho_Filho*8 );
         transition accept;
     }
 
@@ -221,6 +221,7 @@ control MyIngress(inout headers hdr,
         hdr.int_novo_filho.Porta_Saida = standard_metadata.egress_spec;
         hdr.int_novo_filho.Timestamp = standard_metadata.ingress_global_timestamp;
         hdr.int_novo_filho.padding = 0;
+        hdr.ipv4.totalLen = hdr.ipv4.totalLen + 13;
 
     }
 
@@ -241,7 +242,7 @@ control MyIngress(inout headers hdr,
                 //Verificar se eh assim mesmo que se adiciona headers.
                 //Item1 da primeira pagina da spec do trabalho comenta setValid.
                 hdr.int_pai.setValid();
-                hdr.int_pai.Tamanho_Filho = 104; //verificar se existe uma forma de extrair o tamanho das structs
+                hdr.int_pai.Tamanho_Filho = 13; //verificar se existe uma forma de extrair o tamanho das structs
                 hdr.int_pai.Quantidade_Filhos = 0;
 
                 //salva o protocolo que viria apos o ipv4 no next_header do pai e 
@@ -249,6 +250,7 @@ control MyIngress(inout headers hdr,
                 // existencia do int_pai no parser.
                 hdr.int_pai.next_header = hdr.ipv4.protocol;
                 hdr.ipv4.protocol= TYPE_INT;
+                hdr.ipv4.totalLen = hdr.ipv4.totalLen + 9;
             }
             //Ja existe o pai. Atualiza o numero de filhos e insere novo filho.
             intfilho.apply();
