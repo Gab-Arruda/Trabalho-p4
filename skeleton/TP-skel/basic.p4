@@ -143,10 +143,6 @@ parser MyParser(packet_in packet,
 //		transition  accept;
 //	}
 
-/*TODO: acho que nao eh no parser que adiciona o cabecalho.
-    pelo que eu entendi o parser é só pra preencher os headers e dar
-    accept ou reject 
-*/
     state parse_int_pai {
         packet.extract(hdr.int_pai);
         meta.remaining = hdr.int_pai.Quantidade_Filhos;
@@ -216,7 +212,7 @@ control MyIngress(inout headers hdr,
     action add_intfilho(bit<32> swid){
         hdr.int_pai.Quantidade_Filhos = hdr.int_pai.Quantidade_Filhos + 1;
         hdr.int_novo_filho.setValid();
-        hdr.int_novo_filho.ID_Switch = swid; //???
+        hdr.int_novo_filho.ID_Switch = swid;
         hdr.int_novo_filho.Porta_Entrada = standard_metadata.ingress_port;
         hdr.int_novo_filho.Porta_Saida = standard_metadata.egress_spec;
         hdr.int_novo_filho.Timestamp = standard_metadata.ingress_global_timestamp;
@@ -238,16 +234,14 @@ control MyIngress(inout headers hdr,
             ipv4_lpm.apply();
 
             if(!hdr.int_pai.isValid()){
-                //TODO: inserir o header int_pai e 1 header int_filho.
-                //Verificar se eh assim mesmo que se adiciona headers.
-                //Item1 da primeira pagina da spec do trabalho comenta setValid.
+                //Adiciona header Pai
                 hdr.int_pai.setValid();
                 hdr.int_pai.Tamanho_Filho = 13; //verificar se existe uma forma de extrair o tamanho das structs
                 hdr.int_pai.Quantidade_Filhos = 0;
 
                 //salva o protocolo que viria apos o ipv4 no next_header do pai e 
-                //seta o protocol do ipv4 para int. No proximo hop vai identificar a 
-                // existencia do int_pai no parser.
+                //seta o protocol do ipv4 para int. 
+                //O proximo hop vai identificar a existencia do int_pai no parser pelo IP.proto==TYPE_INT.
                 hdr.int_pai.next_header = hdr.ipv4.protocol;
                 hdr.ipv4.protocol= TYPE_INT;
                 hdr.ipv4.totalLen = hdr.ipv4.totalLen + 9;
