@@ -2,7 +2,7 @@ BUILD_DIR = build
 PCAP_DIR = pcaps
 LOG_DIR = logs
 
-TOPO = topology.json
+TOPO = topology2.json
 P4C = p4c-bm2-ss
 RUN_SCRIPT = ../../utils/run_exercise.py
 
