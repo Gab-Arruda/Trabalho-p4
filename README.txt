@@ -29,13 +29,14 @@ Na aula sincrona do dia 27/10 foi dito que as informações de telemetria devem 
 que não seja um simples print dos headers INT.
 
 Sugestões dadas na apresentação da parte 1:
-- Criar defines
+- (DONE) Criar defines
 - usar registrador em vez de tabelas para o sw_ID
-- revisitar o esquema de usar stack headers
-- extrair um header por estado no parser
+- (DONE) revisitar o esquema de usar stack headers
+- (DONE) extrair um header por estado no parser
 - colocar mais informações no INT_filho
 
 Verificar se dá para usar h.minSizeInBytes() para evitar hardcoded
+   -Aparentemente era para funcionar, mas a nossa versao nao suporta isso.
 
 
 TODO list:
