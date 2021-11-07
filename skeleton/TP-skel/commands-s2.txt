@@ -1,0 +1,2 @@
+mirroring_add 100 2
+register_write swid 0 2

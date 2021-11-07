@@ -4,26 +4,6 @@
   "bmv2_json": "build/basic.json",
   "table_entries": [
     {
-      "table": "MyIngress.intfilho",
-      "default_action": true,
-      "action_name": "MyIngress.add_intfilho",
-      "action_params": {
-         "swid": 1
-       }
-    },
-    {
-      "table": "MyIngress.ipv4_lpm",
-      "default_action": true,
-      "action_name": "MyIngress.drop",
-      "action_params": { }
-    },
-    {
-      "table": "MyIngress.ipv4_lpm",
-      "default_action": true,
-      "action_name": "MyIngress.drop",
-      "action_params": { }
-    },
-    {
       "table": "MyIngress.ipv4_lpm",
       "match": {
         "hdr.ipv4.dstAddr": ["10.0.1.1", 32]
@@ -31,18 +11,21 @@
       "action_name": "MyIngress.ipv4_forward",
       "action_params": {
         "dstAddr": "00:00:00:00:01:01",
-        "port": 1
+        "port": 1,
+        "isEndhost": 1
       }
     },
     {
       "table": "MyIngress.ipv4_lpm",
       "match": {
         "hdr.ipv4.dstAddr": ["10.0.2.2", 32]
+
       },
       "action_name": "MyIngress.ipv4_forward",
       "action_params": {
         "dstAddr": "00:00:00:02:02:00",
-        "port": 2
+        "port": 2,
+        "isEndhost": 0
       }
     },
     {
@@ -53,7 +36,8 @@
       "action_name": "MyIngress.ipv4_forward",
       "action_params": {
         "dstAddr": "00:00:00:03:03:00",
-        "port": 3
+        "port": 3,
+        "isEndhost": 0
       }
     }
   ]
