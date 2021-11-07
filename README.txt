@@ -15,7 +15,7 @@ pode-se fazer o parser detectar a existencia pelo campo
 correspondente ao ip.protocol.
 
 
-Tamanho atual do intFilho= 104 bits.
+Tamanho atual do intFilho= 37 bytes(com campos inuteis para debug).
 
 ****ETAPA 2****:
 Antes de encaminhar um pacote para o endhost, o switch deve extrair o header INT e enviar somente o pacote original, sem o INT.
@@ -30,17 +30,17 @@ que não seja um simples print dos headers INT.
 
 Sugestões dadas na apresentação da parte 1:
 - (DONE) Criar defines
-- usar registrador em vez de tabelas para o sw_ID
+- (DONE) usar registrador em vez de tabelas para o sw_ID
 - (DONE) revisitar o esquema de usar stack headers
 - (DONE) extrair um header por estado no parser
-- colocar mais informações no INT_filho
+- (DONE +-) colocar mais informações no INT_filho
 
 Verificar se dá para usar h.minSizeInBytes() para evitar hardcoded
    -Aparentemente era para funcionar, mas a nossa versao nao suporta isso.
 
 
 TODO list:
-- criar uma flag no header INT_Pai indicando se o pacote está indo para o telemetry analytics engine.
+- (DONE) criar uma flag no header INT_Pai indicando se o pacote está indo para o telemetry analytics engine.
     (Necessário para que não haja inserção de INT filhos nesses pacotes)
 - colocar mais informações no INT_filho
     - tamanho da fila ?
@@ -51,11 +51,14 @@ TODO list:
     - apresentar algo de forma gráfica seria legal.
 - adicionar o endereço do telemetry analytics engine em todos os switches.
     (imagino ser semelhante à config ID dos switches)
-- descobrir como funciona o clone.
-- modificar parser para se adequar às alterações
-- modificar ingress para se adequar às alterações
-- modificar egress para se adequar às alterações
+- (DONE) descobrir como funciona o clone.
+- (DONE) modificar parser para se adequar às alterações
+- (DONE) modificar ingress para se adequar às alterações
+- (DONE) modificar egress para se adequar às alterações
 - ...
+
+
+
 
 Tutorial de teste:
 https://docs.google.com/document/d/1pk77sS_1S6r6ncPKz0G-BVlcWwKWCnyoxSvD0JW3Xu0/edit?usp=sharing
